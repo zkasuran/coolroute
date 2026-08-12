@@ -17,3 +17,8 @@ venv/
 
 # local scratch (real captured runs are committed selectively)
 artifacts/*.local
+
+# demo-video pipeline artifacts (kept in the lane, never in the code repo)
+CODEX-VIDEO-BRIEF.md
+coolroute-draft.json
+finish-video.sh
