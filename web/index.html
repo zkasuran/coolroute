@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cool Route Planner</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  p.sub { margin: 0 0 24px; color: #94a3b8; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin: 14px 0; }
+  button { background: #38bdf8; color: #08131f; border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; }
+  button:hover { background: #7dd3fc; }
+  input[type=text] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; box-sizing: border-box; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
+  .band-caution { color: #fbbf24; } .band-extreme_caution { color: #fb923c; }
+  .band-danger, .band-extreme_danger { color: #f87171; } .band-safe { color: #34d399; }
+  .tag { font-size: 12px; color: #94a3b8; } code { color: #7dd3fc; }
+  .best { color: #34d399; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cool Route Planner</h1>
+  <p class="sub">Heat-aware routing and scheduling on hyperlocal 2m temperature data. Backend: <span id="backend" class="tag">...</span></p>
+
+  <div class="card">
+    <b>Coolest walking route</b> <span class="tag">Abu Dhabi, 14:00</span>
+    <div><button onclick="run('/api/route','route')">Find coolest route</button></div>
+    <div id="route"></div>
+  </div>
+
+  <div class="card">
+    <b>Coolest time window</b> <span class="tag">central Delhi, 2h outdoor task</span>
+    <div><button onclick="run('/api/time','time')">Find coolest window</button></div>
+    <div id="time"></div>
+  </div>
+
+  <div class="card">
+    <b>Ask the agent</b> <span class="tag">needs a reasoning model configured</span>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input id="q" type="text" placeholder="When is the coolest hour to work outdoors in Delhi?" />
+      <button onclick="ask()">Ask</button>
+    </div>
+    <div id="answer" style="margin-top:10px;"></div>
+  </div>
+</div>
+<script>
+fetch('/health').then(r=>r.json()).then(d=>{document.getElementById('backend').textContent = d.backend + (d.backend==='mock'?' (synthetic, labelled)':'');});
+function band(b){ return '<span class="band-'+b+'">'+b+'</span>'; }
+async function run(url, target){
+  const el = document.getElementById(target); el.innerHTML = 'loading...';
+  const d = await (await fetch(url,{method:'POST'})).json();
+  if (target==='route'){
+    let rows = d.ranked.map(r=>`<tr class="${r.route===d.coolest_route.route?'best':''}"><td>${r.route}</td><td>${r.mean_feels_like_celsius}&deg;C</td><td>${r.max_feels_like_celsius}&deg;C</td><td>${r.mean_shade_fraction}</td><td>${r.length_m} m</td><td>${band(r.heat_risk_band)}</td></tr>`).join('');
+    el.innerHTML = `<div class="tag">source: ${d.source}</div><table><tr><th>route</th><th>mean feels-like</th><th>max</th><th>shade</th><th>length</th><th>risk</th></tr>${rows}</table>`;
+  } else {
+    let rows = d.ranked.map(r=>`<tr class="${r.start_hour===d.coolest.start_hour?'best':''}"><td>${String(r.start_hour).padStart(2,'0')}:00</td><td>${r.avg_feels_like_celsius}&deg;C</td><td>${r.peak_feels_like_celsius}&deg;C</td><td>${band(r.heat_risk_band)}</td></tr>`).join('');
+    el.innerHTML = `<div class="tag">source: ${d.source}</div><table><tr><th>start</th><th>avg feels-like</th><th>peak</th><th>risk</th></tr>${rows}</table>`;
+  }
+}
+async function ask(){
+  const q = document.getElementById('q').value; const el = document.getElementById('answer'); el.textContent='thinking...';
+  const res = await fetch('/api/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});
+  if(!res.ok){ el.textContent = 'Agent unavailable ('+res.status+'). Use the deterministic buttons above.'; return; }
+  const d = await res.json();
+  el.innerHTML = '<div>'+d.answer.replace(/\n/g,'<br>')+'</div><div class="tag">tools: '+(d.tools||[]).join(', ')+'</div>';
+}
+</script>
+</body>
+</html>

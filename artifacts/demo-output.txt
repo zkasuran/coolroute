@@ -1,0 +1,18 @@
+# FortyGuard backend: mock  (offline synthetic data, labelled 'mock')
+
+Coolest route at 14:00 (mock data): Park detour (green)
+  Through a green space with more tree cover, back streets on the far side.
+route                   feels-like     max   shade   metres  risk
+Park detour (green)          48.7C   51.6    0.61     2852  danger
+Corniche (waterfront)        49.3C   51.9    0.33     3688  danger
+Arterial (direct)            50.0C   52.1    0.38     1924  danger
+
+Coolest window (mock data): start 07:00 for 2h, feels-like 40.57C
+ start  avg feels-like    peak  risk
+   7:00           40.6C   41.3  danger
+   9:00           43.7C   44.5  danger
+  19:00           45.6C   46.4  danger
+  11:00           46.6C   47.3  danger
+  17:00           48.1C   48.6  danger
+  13:00           48.7C   49.0  danger
+  15:00           49.2C   49.3  danger
