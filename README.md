@@ -51,6 +51,20 @@ PYTHONPATH=src python -m coolroute ask "Coolest 2-hour window to work outdoors i
 PYTHONPATH=src uvicorn web.app:app --port 8000
 ```
 
+## Deploy
+
+The web UI ships with a `Dockerfile` and reads all config from the environment,
+so it runs on any container host with no secrets in the image. It defaults to the
+mock backend, so a public demo needs no FortyGuard key.
+
+```bash
+docker build -t coolroute .
+docker run --rm -p 8000:8000 -e COOLROUTE_WEB_KEY=$(openssl rand -hex 16) coolroute
+```
+
+See `docs/deploy.md` for the runtime variables, the security notes and how to
+point it at the live API once the key lands.
+
 ## The mock backend (why the app runs today)
 
 The FortyGuard API key is issued by email after a screened registration, so this
