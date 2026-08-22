@@ -1,4 +1,4 @@
-from coolroute.fortyguard import MockFortyGuardClient
+from coolroute.fortyguard import FortyGuardError, MockFortyGuardClient
 from coolroute.planner import (
     area_heat_snapshot,
     evaluate_routes,
@@ -51,3 +51,24 @@ def test_area_heat_snapshot_summary():
     r = area_heat_snapshot(_client(), 24.49, 54.37, DATE, 14, granularity=100)
     assert r["summary"]["min"] <= r["summary"]["max"]
     assert r["source"] == "mock"
+
+
+class _NoStreetview(MockFortyGuardClient):
+    """Temperature grounding works, but no street-view imagery is available.
+
+    Mirrors live behaviour: streetview coverage is sparse, and a failure there
+    must not abort the whole route ranking (regression for the live path).
+    """
+
+    def streetview(self, *args, **kwargs):
+        raise FortyGuardError(502, "no imagery at this point")
+
+
+def test_evaluate_routes_tolerates_streetview_failure():
+    r = evaluate_routes(_NoStreetview(), ABU_DHABI_ROUTES, DATE, 14, samples=5)
+    assert len(r["ranked"]) == 3
+    for row in r["ranked"]:
+        assert row["mean_feels_like_celsius"] is not None  # temperature still ranks
+        assert row["mean_shade_fraction"] == 0.0           # shade defaults to exposed
+        assert row["shade_samples"] == 0
+    assert r["coolest_route"] is not None

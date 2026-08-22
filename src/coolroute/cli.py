@@ -30,6 +30,9 @@ def _print_route(result: dict) -> None:
     print(f"  {best['description']}")
     print(f"{'route':<22}{'feels-like':>12}{'max':>8}{'shade':>8}{'metres':>9}  risk")
     for r in result["ranked"]:
+        if r.get("mean_feels_like_celsius") is None:
+            print(f"{r['route']:<22}{'no readings available':>39}")
+            continue
         print(f"{r['route']:<22}{r['mean_feels_like_celsius']:>11.1f}C"
               f"{r['max_feels_like_celsius']:>7.1f}{r['mean_shade_fraction']:>8.2f}"
               f"{r['length_m']:>9}  {r['heat_risk_band']}")
