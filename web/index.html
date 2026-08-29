@@ -3,72 +3,486 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Cool Route Planner</title>
+<title>Cool Route Planner: heat-aware routing on hyperlocal temperature</title>
+<meta name="description" content="A heat-aware routing and scheduling agent for people who work, ride or walk outdoors in hot cities. It answers from hyperlocal 2m temperature, grounded in the FortyGuard Temperature API." />
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
-  h1 { margin: 0 0 4px; font-size: 26px; }
-  p.sub { margin: 0 0 24px; color: #94a3b8; }
-  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin: 14px 0; }
-  button { background: #38bdf8; color: #08131f; border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; }
-  button:hover { background: #7dd3fc; }
-  input[type=text] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; box-sizing: border-box; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
-  .band-caution { color: #fbbf24; } .band-extreme_caution { color: #fb923c; }
-  .band-danger, .band-extreme_danger { color: #f87171; } .band-safe { color: #34d399; }
-  .tag { font-size: 12px; color: #94a3b8; } code { color: #7dd3fc; }
-  .best { color: #34d399; font-weight: 600; }
+  :root{
+    color-scheme: light dark;
+    --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ec;
+    --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --accent:#2a78d6; --accent-2:#1baf7a; --on-accent:#ffffff;
+    --safe:#0ca30c; --caution:#fab219; --ecaution:#ec835a; --danger:#d03b3b; --edanger:#8f1d1d;
+    --zone:0.16;
+    --shadow:0 1px 2px rgba(11,11,11,.05), 0 10px 30px rgba(11,11,11,.07);
+    --radius:16px;
+    --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
+      --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+      --accent:#3987e5; --accent-2:#199e70; --on-accent:#ffffff;
+      --danger:#e05555; --edanger:#c14343; --zone:0.22;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-2:#199e70; --on-accent:#ffffff;
+    --danger:#e05555; --edanger:#c14343; --zone:0.22;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.55);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; font:16px/1.6 var(--font); background:var(--plane); color:var(--ink);
+        -webkit-font-smoothing:antialiased; }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 20px; }
+
+  /* nav */
+  header.nav{ position:sticky; top:0; z-index:20; backdrop-filter:saturate(1.4) blur(10px);
+    background:color-mix(in srgb, var(--plane) 82%, transparent); border-bottom:1px solid var(--border); }
+  .nav .wrap{ display:flex; align-items:center; gap:16px; height:60px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:700; color:var(--ink); }
+  .brand svg{ display:block; }
+  .nav .spacer{ flex:1; }
+  .nav a.link{ color:var(--ink-2); font-size:14px; font-weight:500; }
+  .nav a.link:hover{ color:var(--ink); text-decoration:none; }
+  .btn{ appearance:none; border:0; cursor:pointer; font:inherit; font-weight:600;
+    border-radius:10px; padding:10px 16px; background:var(--accent); color:var(--on-accent); }
+  .btn:hover{ filter:brightness(1.06); }
+  .btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--border); }
+  .btn.small{ padding:7px 12px; font-size:13px; }
+  .toggle{ background:transparent; border:1px solid var(--border); color:var(--ink-2);
+    border-radius:9px; width:38px; height:38px; cursor:pointer; font-size:16px; display:grid; place-items:center; }
+
+  /* hero */
+  .hero{ position:relative; overflow:hidden; }
+  .hero::before{ content:""; position:absolute; inset:-40% -10% auto -10%; height:150%;
+    background:
+      radial-gradient(60% 55% at 18% 20%, color-mix(in srgb,var(--accent) 30%, transparent), transparent 70%),
+      radial-gradient(55% 60% at 88% 10%, color-mix(in srgb,var(--edanger) 34%, transparent), transparent 70%),
+      radial-gradient(50% 50% at 70% 80%, color-mix(in srgb,var(--caution) 26%, transparent), transparent 72%);
+    filter:blur(10px); opacity:.9; z-index:-1; }
+  .hero .wrap{ padding:72px 20px 44px; }
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
+    color:var(--ink-2); background:var(--surface); border:1px solid var(--border);
+    padding:6px 12px; border-radius:999px; box-shadow:var(--shadow); }
+  .eyebrow .dot{ width:8px; height:8px; border-radius:50%; background:var(--accent-2); }
+  h1{ font-size:clamp(2.1rem,5.2vw,3.5rem); line-height:1.05; letter-spacing:-0.02em;
+    margin:20px 0 0; max-width:16ch; }
+  .lede{ font-size:clamp(1.05rem,2.2vw,1.28rem); color:var(--ink-2); max-width:60ch; margin:18px 0 0; }
+  .cta{ display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; }
+  .kpis{ display:flex; flex-wrap:wrap; gap:28px; margin-top:36px; }
+  .kpi .v{ font-size:1.9rem; font-weight:700; letter-spacing:-0.01em; }
+  .kpi .l{ font-size:13px; color:var(--muted); margin-top:2px; }
+
+  /* generic section */
+  section.band{ padding:56px 0; border-top:1px solid var(--border); }
+  .h2{ font-size:clamp(1.4rem,3vw,1.9rem); letter-spacing:-0.01em; margin:0; }
+  .sec-sub{ color:var(--ink-2); margin:10px 0 0; max-width:64ch; }
+  .grid{ display:grid; gap:18px; }
+  @media(min-width:860px){ .cols-2{ grid-template-columns:1fr 1fr; } .cols-3{ grid-template-columns:repeat(3,1fr);} }
+
+  /* cards */
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; box-shadow:var(--shadow); }
+  .card h3{ margin:0; font-size:1.05rem; }
+  .card .tag{ font-size:12.5px; color:var(--muted); font-weight:500; }
+  .card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .card-head .rt{ text-align:right; }
+  .source{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);
+    border:1px solid var(--border); border-radius:999px; padding:3px 9px; }
+  .source .d{ width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .source.mock .d{ background:var(--caution); } .source.live .d{ background:var(--safe); }
+
+  /* result headline */
+  .headline{ display:flex; align-items:baseline; gap:10px; margin:16px 0 6px; flex-wrap:wrap; }
+  .headline .big{ font-size:1.7rem; font-weight:700; letter-spacing:-0.01em; }
+  .headline .cap{ color:var(--ink-2); font-size:.95rem; }
+
+  /* dot-plot on a heat axis */
+  .plot{ margin-top:14px; }
+  .ruler{ position:relative; height:18px; margin:0 0 6px 0; }
+  .ruler .tick{ position:absolute; top:0; transform:translateX(-50%); font-size:11px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .ruler .tick::before{ content:""; position:absolute; top:14px; left:50%; width:1px; height:6px; background:var(--grid); }
+  .prow{ display:grid; grid-template-columns:148px 1fr; gap:12px; align-items:center; padding:7px 0; }
+  .prow .name{ font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:7px; min-width:0; }
+  .prow .name .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track{ position:relative; height:34px; border-radius:8px; overflow:hidden; background:var(--surface-2); }
+  .zone{ position:absolute; top:0; bottom:0; }
+  .gtick{ position:absolute; top:0; bottom:0; width:1px; background:var(--grid); opacity:.7; }
+  .dot{ position:absolute; top:50%; width:14px; height:14px; border-radius:50%;
+    transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--surface); }
+  .dot.best{ width:20px; height:20px; box-shadow:0 0 0 3px var(--surface), 0 0 0 5px color-mix(in srgb,var(--accent) 60%, transparent); }
+  .val{ position:absolute; top:50%; transform:translateY(-50%); font-size:12px; font-weight:700;
+    color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .prow.best .name{ color:var(--ink); }
+  .prow.best{ background:color-mix(in srgb,var(--accent) 8%, transparent); border-radius:10px; }
+
+  /* pills */
+  .pill{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    padding:3px 9px; border-radius:999px; letter-spacing:.01em; white-space:nowrap; }
+  .best-tag{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 40%, transparent);
+    border-radius:999px; padding:2px 7px; }
+  .sub{ font-size:12px; color:var(--muted); }
+
+  /* agent card */
+  .ask-row{ display:flex; gap:8px; margin-top:12px; }
+  .ask-row input{ flex:1; min-width:0; padding:11px 13px; border-radius:10px; border:1px solid var(--border);
+    background:var(--plane); color:var(--ink); font:inherit; }
+  .ask-row input:focus{ outline:2px solid color-mix(in srgb,var(--accent) 55%, transparent); outline-offset:1px; }
+  .answer{ margin-top:12px; font-size:14.5px; }
+  .toolchips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chip{ font-size:11.5px; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--border);
+    padding:3px 9px; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .notice{ font-size:13px; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:10px 12px; margin-top:12px; }
+
+  /* how it works pipeline */
+  .flow{ display:grid; gap:12px; }
+  @media(min-width:760px){ .flow{ grid-template-columns:repeat(4,1fr); align-items:stretch; } }
+  .step{ position:relative; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow); }
+  .step .n{ width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-weight:800;
+    font-size:13px; background:color-mix(in srgb,var(--accent) 16%, transparent); color:var(--accent); }
+  .step h4{ margin:10px 0 4px; font-size:.98rem; }
+  .step p{ margin:0; font-size:13.5px; color:var(--ink-2); }
+
+  /* legend / heat scale */
+  .scale{ border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--surface); box-shadow:var(--shadow); }
+  .scalebar{ display:flex; height:56px; }
+  .scalebar .seg{ flex:1; position:relative; }
+  .scalebar .seg span{ position:absolute; left:10px; bottom:8px; font-size:12px; font-weight:700; }
+  .scalebar .seg small{ position:absolute; left:10px; top:8px; font-size:11px; opacity:.85; font-variant-numeric:tabular-nums; }
+  .scalenote{ padding:12px 14px; font-size:13px; color:var(--ink-2); border-top:1px solid var(--border); }
+
+  /* honesty */
+  .facts{ display:grid; gap:10px; margin-top:14px; }
+  .fact{ display:flex; gap:10px; align-items:flex-start; font-size:14.5px; color:var(--ink-2); }
+  .fact svg{ flex:none; margin-top:3px; color:var(--accent-2); }
+
+  /* footer */
+  footer{ border-top:1px solid var(--border); padding:34px 0; color:var(--muted); font-size:13.5px; }
+  footer .wrap{ display:flex; flex-wrap:wrap; gap:16px 28px; align-items:center; }
+  footer a{ color:var(--ink-2); }
+
+  /* skeleton + motion */
+  .skel{ background:linear-gradient(90deg,var(--surface-2),color-mix(in srgb,var(--surface-2) 60%,var(--surface)),var(--surface-2));
+    background-size:200% 100%; animation:sh 1.1s linear infinite; border-radius:8px; height:34px; }
+  @keyframes sh{ to{ background-position:-200% 0; } }
+  .dot,.track,.step,.btn{ transition:all .18s ease; }
+  @media(prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; scroll-behavior:auto; } }
+  .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .center{ text-align:center; }
+  .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  @media(max-width:560px){
+    .prow{ grid-template-columns:110px 1fr; }
+    .kpis{ gap:20px; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Cool Route Planner</h1>
-  <p class="sub">Heat-aware routing and scheduling on hyperlocal 2m temperature data. Backend: <span id="backend" class="tag">...</span></p>
+<a class="visually-hidden" href="#demo">Skip to the live demo</a>
 
-  <div class="card">
-    <b>Coolest walking route</b> <span class="tag">Abu Dhabi, 14:00</span>
-    <div><button onclick="run('/api/route','route')">Find coolest route</button></div>
-    <div id="route"></div>
+<header class="nav">
+  <div class="wrap">
+    <span class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" fill="var(--caution)"/>
+        <path d="M4 20c3-1 4-4 8-4s5 3 8 2" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19" stroke="var(--ecaution)" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      Cool Route Planner
+    </span>
+    <span class="spacer"></span>
+    <a class="link" href="#demo">Live demo</a>
+    <a class="link" href="#how">How it works</a>
+    <a class="link" href="https://github.com/zkasuran/coolroute">Source</a>
+    <button class="toggle" id="themeBtn" title="Toggle light and dark" aria-label="Toggle light and dark">◐</button>
   </div>
+</header>
 
-  <div class="card">
-    <b>Coolest time window</b> <span class="tag">central Delhi, 2h outdoor task</span>
-    <div><button onclick="run('/api/time','time')">Find coolest window</button></div>
-    <div id="time"></div>
-  </div>
-
-  <div class="card">
-    <b>Ask the agent</b> <span class="tag">needs a reasoning model configured</span>
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <input id="q" type="text" placeholder="When is the coolest hour to work outdoors in Delhi?" />
-      <button onclick="ask()">Ask</button>
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span> FortyGuard Hackathon '26 · AI Agents track</span>
+    <h1>The coolest way through a hot city.</h1>
+    <p class="lede">Cool Route Planner is a heat-aware routing and scheduling agent for people who work, ride or walk outdoors. Ask it for the coolest path between two points or the coolest hour for an outdoor task. It answers from hyperlocal 2m temperature, not a city-wide forecast.</p>
+    <div class="cta">
+      <a class="btn" href="#demo">Try the live demo</a>
+      <a class="btn ghost" href="#how">See how it works</a>
     </div>
-    <div id="answer" style="margin-top:10px;"></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">2&nbsp;m</div><div class="l">above-ground temperature, not a city average</div></div>
+      <div class="kpi"><div class="v">5</div><div class="l">heat-risk bands, safe through extreme danger</div></div>
+      <div class="kpi"><div class="v">100%</div><div class="l">of numbers grounded in the API, never the model</div></div>
+    </div>
   </div>
-</div>
+</section>
+<section class="band">
+  <div class="wrap">
+    <h2 class="h2">A city forecast is the wrong resolution.</h2>
+    <p class="sec-sub">"42 degrees in Delhi today" cannot tell a delivery rider which of three roads bakes hardest at 2pm. It cannot tell them the 7am window feels far cooler than the afternoon. Heat is hyperlocal. Shade, surface and humidity move the felt temperature more than the map does. That gap is a health risk. It is exactly what this agent reads.</p>
+  </div>
+</section>
+
+<section class="band" id="demo">
+  <div class="wrap">
+    <h2 class="h2">Live demo</h2>
+    <p class="sec-sub">Two planners running against the deployed backend right now. Each number is the felt temperature returned by the data source, placed on the NWS heat-risk scale. The coolest option is marked.</p>
+    <div class="grid cols-2" style="margin-top:22px;align-items:start">
+
+      <div class="card">
+        <div class="card-head">
+          <div><h3>Coolest walking route</h3><div class="tag">Abu Dhabi · marina to museum district · 14:00</div></div>
+          <div class="rt"><span class="source" id="routeSrc"><span class="d"></span>…</span></div>
+        </div>
+        <div id="routeOut">
+          <div class="skel" style="margin-top:16px"></div>
+          <div class="skel" style="margin-top:10px"></div>
+          <div class="skel" style="margin-top:10px"></div>
+        </div>
+        <div style="margin-top:14px"><button class="btn small ghost" onclick="loadRoute()">Re-run</button></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div><h3>Coolest time window</h3><div class="tag">central Delhi · 2-hour outdoor task</div></div>
+          <div class="rt"><span class="source" id="timeSrc"><span class="d"></span>…</span></div>
+        </div>
+        <div id="timeOut">
+          <div class="skel" style="margin-top:16px"></div>
+          <div class="skel" style="margin-top:10px"></div>
+          <div class="skel" style="margin-top:10px"></div>
+        </div>
+        <div style="margin-top:14px"><button class="btn small ghost" onclick="loadTime()">Re-run</button></div>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="card-head">
+        <div><h3>Ask the agent</h3><div class="tag">the same planners, driven by a reasoning model that calls the API as tools</div></div>
+      </div>
+      <div class="ask-row">
+        <input id="q" type="text" value="When is the coolest 2-hour window to work outdoors in Delhi?" aria-label="Ask the agent a heat question" />
+        <button class="btn" id="askBtn" onclick="ask()">Ask</button>
+      </div>
+      <div class="answer" id="answer"></div>
+      <div class="notice" id="agentState">Checking the agent backend…</div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="how">
+  <div class="wrap">
+    <h2 class="h2">How it works</h2>
+    <p class="sec-sub">The agent is a reasoning model that calls the FortyGuard Temperature API as its tools. It never invents a temperature. It ranks options on the returned field, then leads with one recommendation and a safety note.</p>
+    <div class="flow" style="margin-top:22px">
+      <div class="step"><div class="n">1</div><h4>Read the ask</h4><p>A route between two points or a time window for an outdoor task, in plain language.</p></div>
+      <div class="step"><div class="n">2</div><h4>Call the API</h4><p>Hyperlocal 2m temperature, felt-heat index, wet-bulb and street-level shade at each sampled point.</p></div>
+      <div class="step"><div class="n">3</div><h4>Score on the data</h4><p>Deterministic planners rank routes or hours by felt temperature. The numbers come from the API, not the model.</p></div>
+      <div class="step"><div class="n">4</div><h4>Answer with a band</h4><p>One recommendation, the felt temperature and an NWS heat-risk band with a safety note.</p></div>
+    </div>
+    <p class="sec-sub" style="margin-top:18px">Felt temperature uses the NWS heat-index regression. Wet-bulb uses Stull (2011). Risk bands follow the NWS heat-index categories.</p>
+  </div>
+</section>
+<section class="band">
+  <div class="wrap">
+    <h2 class="h2">The heat-risk scale</h2>
+    <p class="sec-sub">Every recommendation lands on the NWS heat-index bands, read in felt temperature. This is the scale behind each dot and pill above.</p>
+    <div class="scale" style="margin-top:20px">
+      <div class="scalebar">
+        <div class="seg" style="background:var(--safe);color:#0b0b0b"><small>below 27&deg;</small><span>Safe</span></div>
+        <div class="seg" style="background:var(--caution);color:#0b0b0b"><small>27&ndash;32&deg;</small><span>Caution</span></div>
+        <div class="seg" style="background:var(--ecaution);color:#0b0b0b"><small>32&ndash;41&deg;</small><span>Extreme caution</span></div>
+        <div class="seg" style="background:var(--danger);color:#fff"><small>41&ndash;54&deg;</small><span>Danger</span></div>
+        <div class="seg" style="background:var(--edanger);color:#fff"><small>54&deg;+</small><span>Extreme danger</span></div>
+      </div>
+      <div class="scalenote">Values are "feels like", the heat-index temperature that folds humidity into the reading. Shade at high sun eases the felt temperature. The bands never carry meaning by colour alone, so each one is always labelled.</div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap grid cols-2" style="align-items:center">
+    <div>
+      <h2 class="h2">Real by default, honest about the demo</h2>
+      <div class="facts">
+        <div class="fact"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>The live FortyGuard path is real and verified. One line of config swaps the whole data source. No code above the adapter changes.</span></div>
+        <div class="fact"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>This public demo runs a labelled synthetic backend so it needs no key. Every response is tagged as mock. Nothing here pretends to be a real reading.</span></div>
+        <div class="fact"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>The server reads heat data only. It performs no writes, so the demo blast radius is low.</span></div>
+      </div>
+    </div>
+    <div class="card center">
+      <div class="tag">This deployment is serving</div>
+      <div class="headline" style="justify-content:center;margin-top:8px"><span class="source" id="backendBig" style="font-size:14px;padding:8px 14px"><span class="d"></span>…</span></div>
+      <p class="sub" id="backendNote" style="margin-top:10px">Reading the backend from the live health check.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="brand" style="font-size:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="var(--caution)"/><path d="M4 20c3-1 4-4 8-4s5 3 8 2" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg> Cool Route Planner</span>
+    <span class="spacer" style="flex:1"></span>
+    <a href="https://github.com/zkasuran/coolroute">Source on GitHub</a>
+    <a href="#demo">Live demo</a>
+    <span>Built for FortyGuard Hackathon '26. Built with AI assistance; designed, reviewed and verified by the author.</span>
+  </div>
+</footer>
 <script>
-fetch('/health').then(r=>r.json()).then(d=>{document.getElementById('backend').textContent = d.backend + (d.backend==='mock'?' (synthetic, labelled)':'');});
-function band(b){ return '<span class="band-'+b+'">'+b+'</span>'; }
-async function run(url, target){
-  const el = document.getElementById(target); el.innerHTML = 'loading...';
-  const d = await (await fetch(url,{method:'POST'})).json();
-  if (target==='route'){
-    let rows = d.ranked.map(r=>`<tr class="${r.route===d.coolest_route.route?'best':''}"><td>${r.route}</td><td>${r.mean_feels_like_celsius}&deg;C</td><td>${r.max_feels_like_celsius}&deg;C</td><td>${r.mean_shade_fraction}</td><td>${r.length_m} m</td><td>${band(r.heat_risk_band)}</td></tr>`).join('');
-    el.innerHTML = `<div class="tag">source: ${d.source}</div><table><tr><th>route</th><th>mean feels-like</th><th>max</th><th>shade</th><th>length</th><th>risk</th></tr>${rows}</table>`;
-  } else {
-    let rows = d.ranked.map(r=>`<tr class="${r.start_hour===d.coolest.start_hour?'best':''}"><td>${String(r.start_hour).padStart(2,'0')}:00</td><td>${r.avg_feels_like_celsius}&deg;C</td><td>${r.peak_feels_like_celsius}&deg;C</td><td>${band(r.heat_risk_band)}</td></tr>`).join('');
-    el.innerHTML = `<div class="tag">source: ${d.source}</div><table><tr><th>start</th><th>avg feels-like</th><th>peak</th><th>risk</th></tr>${rows}</table>`;
+  // ---- theme toggle (data-theme wins over OS setting) ----
+  const root = document.documentElement;
+  try{ const t = localStorage.getItem("cr-theme"); if(t) root.setAttribute("data-theme", t); }catch(e){}
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const cur = root.getAttribute("data-theme");
+    const isDark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = isDark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try{ localStorage.setItem("cr-theme", next); }catch(e){}
+  });
+
+  // ---- heat scale ----
+  const TMIN = 25, TMAX = 56;
+  const BANDS = {
+    safe:{v:"safe",l:"Safe"}, caution:{v:"caution",l:"Caution"},
+    extreme_caution:{v:"ecaution",l:"Extreme caution"},
+    danger:{v:"danger",l:"Danger"}, extreme_danger:{v:"edanger",l:"Extreme danger"},
+  };
+  const ZONES = [["safe",25,27],["caution",27,32],["ecaution",32,41],["danger",41,54],["edanger",54,56]];
+  const pos = v => Math.max(0, Math.min(100, (v - TMIN) / (TMAX - TMIN) * 100));
+  const band = key => BANDS[key] || {v:"danger", l:key || "risk"};
+
+  function zonesHTML(){
+    return ZONES.map(([v,a,b]) =>
+      `<div class="zone" style="left:${pos(a)}%;width:${pos(b)-pos(a)}%;background:var(--${v});opacity:var(--zone)"></div>`
+    ).join("") + [30,35,40,45,50].map(t => `<div class="gtick" style="left:${pos(t)}%"></div>`).join("");
   }
-}
-async function ask(){
-  const q = document.getElementById('q').value; const el = document.getElementById('answer'); el.textContent='thinking...';
-  const res = await fetch('/api/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});
-  if(!res.ok){ el.textContent = 'Agent unavailable ('+res.status+'). Use the deterministic buttons above.'; return; }
-  const d = await res.json();
-  el.innerHTML = '<div>'+d.answer.replace(/\n/g,'<br>')+'</div><div class="tag">tools: '+(d.tools||[]).join(', ')+'</div>';
-}
+  function rulerHTML(){
+    return `<div class="ruler">` + [30,35,40,45,50,55].map(t =>
+      `<span class="tick" style="left:${pos(t)}%">${t}&deg;</span>`).join("") + `</div>`;
+  }
+  function setSource(id, src){
+    const el = document.getElementById(id); if(!el) return;
+    const live = src === "live";
+    el.className = "source " + (live ? "live" : "mock");
+    el.innerHTML = `<span class="d"></span>${live ? "live FortyGuard data" : "mock data (synthetic, labelled)"}`;
+  }
+  const fmt = n => (Math.round(n * 10) / 10).toFixed(1);
+
+  // Static-first: on GitHub Pages the baked mock JSON is served; under the
+  // FastAPI server that path 404s and we fall back to the live planner endpoints.
+  async function getData(name){
+    try{ const r = await fetch(`./data/${name}.json`, {cache:"no-store"}); if(r.ok) return await r.json(); }catch(e){}
+    const ep = {route:"/api/route", time:"/api/time"};
+    return await (await fetch(ep[name], {method:"POST"})).json();
+  }
+  async function getHealth(){
+    try{ const r = await fetch("./data/health.json", {cache:"no-store"}); if(r.ok) return await r.json(); }catch(e){}
+    return await (await fetch("/health")).json();
+  }
 </script>
+
+<script>
+  function trackHTML(value, key, best, valLabel){
+    const p = pos(value), b = band(key);
+    const val = p < 78
+      ? `left:calc(${p}% + 14px)`
+      : `left:calc(${p}% - 14px);transform:translate(-100%,-50%)`;
+    return `<div class="track" role="img" aria-label="${valLabel} feels-like, ${b.l}">${zonesHTML()}`
+      + `<div class="dot ${best?'best':''}" style="left:${p}%;background:var(--${b.v})"></div>`
+      + `<div class="val" style="${val}">${valLabel}</div></div>`;
+  }
+  function row(r){
+    return `<div class="prow ${r.best?'best':''}"><div style="min-width:0">`
+      + `<div class="name"><span class="txt">${r.l1}</span>${r.best?'<span class="best-tag">Coolest</span>':''}</div>`
+      + `<div class="sub">${r.l2}</div></div>`
+      + `<div>${trackHTML(r.value, r.key, r.best, r.valLabel)}</div></div>`;
+  }
+  function renderPlot(rows){
+    return `<div class="plot"><div class="prow"><div></div><div>${rulerHTML()}</div></div>${rows.map(row).join("")}</div>`;
+  }
+  async function loadRoute(){
+    const out = document.getElementById("routeOut");
+    try{
+      const d = await getData("route");
+      setSource("routeSrc", d.source);
+      const best = d.coolest_route || {};
+      const rows = d.ranked.filter(r => r.mean_feels_like_celsius != null).map(r => ({
+        key:r.heat_risk_band, best:r.route === best.route, value:r.mean_feels_like_celsius,
+        l1:r.route, l2:`${band(r.heat_risk_band).l} · ${Math.round((r.mean_shade_fraction||0)*100)}% shade`,
+        valLabel:`${fmt(r.mean_feels_like_celsius)}&deg;`,
+      }));
+      const head = `<div class="headline"><span class="big">${best.route}</span>`
+        + `<span class="cap">coolest at ${fmt(best.mean_feels_like_celsius)}&deg; felt</span></div>`;
+      out.innerHTML = head + renderPlot(rows);
+    }catch(e){ out.innerHTML = `<div class="notice">Could not reach the planner (${e}).</div>`; }
+  }
+</script>
+
+<script>
+  async function loadTime(){
+    const out = document.getElementById("timeOut");
+    try{
+      const d = await getData("time");
+      setSource("timeSrc", d.source);
+      const cool = d.coolest || d.ranked[0];
+      const hot = d.ranked[d.ranked.length - 1];
+      const rows = d.ranked.map(r => ({
+        key:r.heat_risk_band, best:r.start_hour === cool.start_hour, value:r.avg_feels_like_celsius,
+        l1:`${String(r.start_hour).padStart(2,"0")}:00`,
+        l2:`${band(r.heat_risk_band).l} · peaks ${fmt(r.peak_feels_like_celsius)}&deg;`,
+        valLabel:`${fmt(r.avg_feels_like_celsius)}&deg;`,
+      }));
+      const delta = hot.avg_feels_like_celsius - cool.avg_feels_like_celsius;
+      const head = `<div class="headline"><span class="big">${fmt(delta)}&deg; cooler</span>`
+        + `<span class="cap">at ${String(cool.start_hour).padStart(2,"0")}:00 versus the ${String(hot.start_hour).padStart(2,"0")}:00 peak</span></div>`;
+      out.innerHTML = head + renderPlot(rows);
+    }catch(e){ out.innerHTML = `<div class="notice">Could not reach the planner (${e}).</div>`; }
+  }
+</script>
+
+<script>
+  async function health(){
+    try{
+      const h = await getHealth();
+      setSource("backendBig", h.backend);
+      document.getElementById("backendNote").textContent = h.backend === "live"
+        ? "Live data from the FortyGuard Temperature API."
+        : "The labelled synthetic backend, so this public demo runs with no key.";
+      const state = document.getElementById("agentState");
+      const ask = document.getElementById("askBtn"), q = document.getElementById("q");
+      if(h.llm_configured){
+        state.textContent = "A reasoning model is configured. Ask a question above to run the agent live.";
+      }else{
+        state.textContent = "The public demo runs without a reasoning model, so the free-text agent is offline here. The two planners above use the same grounded data the agent calls as its tools. Configure a model to switch this box on.";
+        ask.disabled = true; ask.style.opacity = .5; ask.style.cursor = "not-allowed"; q.disabled = true;
+      }
+    }catch(e){}
+  }
+  async function ask(){
+    const q = document.getElementById("q").value.trim();
+    const el = document.getElementById("answer"); if(!q) return;
+    el.textContent = "Thinking…";
+    try{
+      const res = await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question:q})});
+      if(!res.ok){ el.innerHTML = `<div class="notice">The agent is unavailable (${res.status}). Use the two planners above.</div>`; return; }
+      const d = await res.json();
+      el.innerHTML = `<div>${(d.answer||"").replace(/\n/g,"<br>")}</div>`
+        + `<div class="toolchips">${(d.tools||[]).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`;
+    }catch(e){ el.innerHTML = `<div class="notice">Could not reach the agent (${e}).</div>`; }
+  }
+  loadRoute(); loadTime(); health();
+</script>
+
 </body>
 </html>

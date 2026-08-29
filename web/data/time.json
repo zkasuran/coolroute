@@ -1,0 +1,66 @@
+{
+  "location": {
+    "latitude": 28.6139,
+    "longitude": 77.209
+  },
+  "date": "2024-07-15",
+  "coolest": {
+    "start_hour": 7,
+    "window_hours": 2,
+    "avg_feels_like_celsius": 40.57,
+    "peak_feels_like_celsius": 41.3,
+    "heat_risk_band": "danger"
+  },
+  "ranked": [
+    {
+      "start_hour": 7,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 40.57,
+      "peak_feels_like_celsius": 41.3,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 9,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 43.67,
+      "peak_feels_like_celsius": 44.45,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 19,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 45.6,
+      "peak_feels_like_celsius": 46.39,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 11,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 46.61,
+      "peak_feels_like_celsius": 47.27,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 17,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 48.09,
+      "peak_feels_like_celsius": 48.56,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 13,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 48.66,
+      "peak_feels_like_celsius": 49.01,
+      "heat_risk_band": "danger"
+    },
+    {
+      "start_hour": 15,
+      "window_hours": 2,
+      "avg_feels_like_celsius": 49.2,
+      "peak_feels_like_celsius": 49.26,
+      "heat_risk_band": "danger"
+    }
+  ],
+  "source": "mock"
+}

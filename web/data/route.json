@@ -1,0 +1,71 @@
+{
+  "date": "2024-07-15",
+  "hour": 14,
+  "coolest_route": {
+    "route": "Park detour (green)",
+    "description": "Through a green space with more tree cover, back streets on the far side.",
+    "length_m": 2852,
+    "mean_feels_like_celsius": 48.66,
+    "max_feels_like_celsius": 51.63,
+    "mean_shade_fraction": 0.61,
+    "heat_risk_band": "danger",
+    "hottest_point": {
+      "latitude": 24.4939,
+      "longitude": 54.3773,
+      "feels_like_celsius": 51.63
+    },
+    "samples": 5,
+    "shade_samples": 5
+  },
+  "ranked": [
+    {
+      "route": "Park detour (green)",
+      "description": "Through a green space with more tree cover, back streets on the far side.",
+      "length_m": 2852,
+      "mean_feels_like_celsius": 48.66,
+      "max_feels_like_celsius": 51.63,
+      "mean_shade_fraction": 0.61,
+      "heat_risk_band": "danger",
+      "hottest_point": {
+        "latitude": 24.4939,
+        "longitude": 54.3773,
+        "feels_like_celsius": 51.63
+      },
+      "samples": 5,
+      "shade_samples": 5
+    },
+    {
+      "route": "Corniche (waterfront)",
+      "description": "Longer waterfront path with a sea breeze.",
+      "length_m": 3688,
+      "mean_feels_like_celsius": 49.29,
+      "max_feels_like_celsius": 51.91,
+      "mean_shade_fraction": 0.334,
+      "heat_risk_band": "danger",
+      "hottest_point": {
+        "latitude": 24.487673872677743,
+        "longitude": 54.371282569682954,
+        "feels_like_celsius": 51.91
+      },
+      "samples": 5,
+      "shade_samples": 5
+    },
+    {
+      "route": "Arterial (direct)",
+      "description": "Shortest path along an exposed multi-lane road.",
+      "length_m": 1924,
+      "mean_feels_like_celsius": 50.02,
+      "max_feels_like_celsius": 52.12,
+      "mean_shade_fraction": 0.376,
+      "heat_risk_band": "danger",
+      "hottest_point": {
+        "latitude": 24.4874218432133,
+        "longitude": 54.36494264627359,
+        "feels_like_celsius": 52.12
+      },
+      "samples": 5,
+      "shade_samples": 5
+    }
+  ],
+  "source": "mock"
+}
