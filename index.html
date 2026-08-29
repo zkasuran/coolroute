@@ -240,10 +240,10 @@
     <p class="sec-sub">Two planners running against the deployed backend right now. Each number is the felt temperature returned by the data source, placed on the NWS heat-risk scale. The coolest option is marked.</p>
     <div class="grid cols-2" style="margin-top:22px;align-items:start">
 
-      <div class="card">
+      <div class="card" id="results">
         <div class="card-head">
           <div><h3>Coolest walking route</h3><div class="tag">Abu Dhabi · marina to museum district · 14:00</div></div>
-          <div class="rt"><span class="source" id="routeSrc"><span class="d"></span>…</span></div>
+          <div class="rt"><span class="source" id="routeSrc" data-step><span class="d"></span>…</span></div>
         </div>
         <div id="routeOut">
           <div class="skel" style="margin-top:16px"></div>
@@ -390,6 +390,13 @@
     try{ const r = await fetch("./data/health.json", {cache:"no-store"}); if(r.ok) return await r.json(); }catch(e){}
     return await (await fetch("/health")).json();
   }
+  // Web-scene capture contract (used only by the demo-video kit; real visitors see
+  // everything at full opacity). Reveals the first k [data-step] items in scope by
+  // opacity, never display, so nothing reflows between reveal states.
+  window.setReveal = function(k, scope){
+    const items = document.querySelectorAll((scope || "#results") + " [data-step]");
+    items.forEach((el, i) => { el.style.opacity = i < k ? "1" : "0.12"; });
+  };
 </script>
 
 <script>
@@ -403,7 +410,7 @@
       + `<div class="val" style="${val}">${valLabel}</div></div>`;
   }
   function row(r){
-    return `<div class="prow ${r.best?'best':''}"><div style="min-width:0">`
+    return `<div class="prow ${r.best?'best':''}" data-step><div style="min-width:0">`
       + `<div class="name"><span class="txt">${r.l1}</span>${r.best?'<span class="best-tag">Coolest</span>':''}</div>`
       + `<div class="sub">${r.l2}</div></div>`
       + `<div>${trackHTML(r.value, r.key, r.best, r.valLabel)}</div></div>`;
