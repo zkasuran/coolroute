@@ -1,8 +1,0 @@
-# FortyGuard backend: live
-
-Coolest route at 14:00 (live data): Corniche (waterfront)
-  Longer waterfront path with a sea breeze.
-route                   feels-like     max   shade   metres  risk
-Corniche (waterfront)        43.3C   43.5    0.00     3688  danger
-Arterial (direct)            43.3C   43.5    0.10     1924  danger
-Park detour (green)          43.4C   43.5    0.00     2852  danger

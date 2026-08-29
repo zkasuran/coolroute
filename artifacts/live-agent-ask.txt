@@ -1,7 +1,0 @@
-**Recommendation: Work from 3:00–5:00 a.m. local time.**
-
-At this central Delhi point, the two-hour average feels-like temperature is **29.4°C**, peaking at **30.2°C**. Hourly wet-bulb temperatures are **23.9–24.6°C**, indicating humid conditions; shade offers little additional benefit before sunrise.
-
-**Heat risk: Caution.** Hydrate regularly and take breaks, especially during heavy work.
-
-[tools used] find_coolest_hour, get_point_conditions, get_point_conditions, get_street_shade
