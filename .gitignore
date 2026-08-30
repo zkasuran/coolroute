@@ -22,3 +22,11 @@ artifacts/*.local
 CODEX-VIDEO-BRIEF.md
 coolroute-draft.json
 finish-video.sh
+/DEMO-*.mp4
+/upload-*/
+
+# submission tooling (private: names, emails, form field ids, key-paste steps)
+/submit/
+
+# deploy cache
+/.wrangler/
